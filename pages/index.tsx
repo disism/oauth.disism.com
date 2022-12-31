@@ -1,11 +1,98 @@
 import Head from 'next/head'
-import Image from 'next/image'
-import { Inter } from '@next/font/google'
 import styles from '../styles/Home.module.css'
+import {useRouter} from "next/router";
+import * as React from "react";
+import {useEffect, useState} from "react";
 
-const inter = Inter({ subsets: ['latin'] })
+const oauth2Addr = "https://oauth2.disism.com"
+
+// If not logged in, the user is required to log in,
+// and if logging in is complete, the token is saved,
+// proving that the user is logged in. The consent and deny components will then be
+// displayed and if consent is selected, the authorization
+// code will be requested and carried back to the requested instance.
+const handleAuth = async (username: string, password: string) => {
+  const formdata = new FormData();
+  formdata.append("username", username);
+  formdata.append("password", password);
+
+  const requestOptions: RequestInit = {
+    method: 'POST',
+    body: formdata,
+    redirect: 'follow'
+  };
+
+  const x = await fetch(`${oauth2Addr}/oauth/auth`, requestOptions)
+  return x.json()
+}
+
+const handleSignup = async (username: string, mail: string, password: string) => {
+  const formdata = new FormData();
+  formdata.append("username", username);
+  formdata.append("mail", mail);
+  formdata.append("password", password);
+
+  const requestOptions: RequestInit = {
+    method: 'POST',
+    body: formdata,
+    redirect: 'follow'
+  };
+
+  const x = await fetch( `${oauth2Addr}/oauth/signup`, requestOptions)
+  return x.json()
+}
 
 export default function Home() {
+  const [username, setUsername] = useState("")
+  const [mail, setMail] = useState("")
+  const [password, setPassword] = useState("")
+  const [isAuth, setIsAuth] = useState(true)
+  const [isLogin, setIsLogin] = useState(true)
+  const router = useRouter()
+
+  useEffect(() => {
+    const token = localStorage.getItem("oauth_access_token")
+    if (token == null) {
+      setIsLogin(false)
+    }
+  }, [])
+
+  const login = async () => {
+    const x =  await handleAuth(username, password)
+    console.log(x)
+    if (x.status === "ok") {
+      localStorage.setItem("oauth_access_token", x.access_token)
+      setIsLogin(true)
+    }
+  }
+
+  const signup = async () => {
+    const x = await handleSignup(username, mail, password)
+    if (x.status === "ok") {
+      setIsAuth(true)
+    }
+  }
+
+  const accept = () => {
+    const token = localStorage.getItem("oauth_access_token")
+    const myHeaders = new Headers();
+    myHeaders.append("Authorization", `Bearer ${token}`);
+
+    const requestOptions: RequestInit = {
+      method: 'GET',
+      headers: myHeaders,
+      redirect: 'follow'
+    };
+
+    fetch(`http://localhost:9096/api/v1/authorize?response_type=code&client_id=${router.query.client_id}&redirect_uri=${router.query.redirect_uri}&scope=${router.query.scope}`, requestOptions)
+      .then(response => response.json())
+      .then(result => {
+        console.log(result)
+        router.push(result.callback)
+      })
+      .catch(error => console.log('error', error));
+  }
+
   return (
     <>
       <Head>
@@ -16,106 +103,73 @@ export default function Home() {
       </Head>
       <main className={styles.main}>
         <div className={styles.description}>
-          <p>
-            Get started by editing&nbsp;
-            <code className={styles.code}>pages/index.tsx</code>
-          </p>
-          <div>
-            <a
-              href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              By{' '}
-              <Image
-                src="/vercel.svg"
-                alt="Vercel Logo"
-                className={styles.vercelLogo}
-                width={100}
-                height={24}
-                priority
-              />
-            </a>
-          </div>
-        </div>
+          {
+            isLogin
+            ?
+              <section>
+                <div>
+                  <button onClick={() => accept()}>Accept</button> | <button>Reject</button>
+                </div>
+              </section>
+              :
 
-        <div className={styles.center}>
-          <Image
-            className={styles.logo}
-            src="/next.svg"
-            alt="Next.js Logo"
-            width={180}
-            height={37}
-            priority
-          />
-          <div className={styles.thirteen}>
-            <Image
-              src="/thirteen.svg"
-              alt="13"
-              width={40}
-              height={31}
-              priority
-            />
-          </div>
-        </div>
-
-        <div className={styles.grid}>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Docs <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Find in-depth information about Next.js features and&nbsp;API.
-            </p>
-          </a>
-
-          <a
-            href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Learn <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Learn about Next.js in an interactive course with&nbsp;quizzes!
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Templates <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Discover and deploy boilerplate example Next.js&nbsp;projects.
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Deploy <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Instantly deploy your Next.js site to a shareable URL
-              with&nbsp;Vercel.
-            </p>
-          </a>
+              <section>
+                {isAuth
+                  ?
+                  <div className="flex">
+                    <div>
+                      <label>Username</label>
+                      <input
+                        type="text"
+                        onChange={e => setUsername(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label>Password</label>
+                      <input type="password"
+                             onChange={e => setPassword(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <button
+                        className="p-5 m-2 bg-orange-400"
+                        onClick={() => login()}>Login</button>
+                      <br/>
+                      <p>Don't have an account yet?</p>
+                      <button
+                        className="underline underline-offset-1"
+                        onClick={() => setIsAuth(false)}>signup</button>
+                    </div>
+                  </div>
+                  :
+                  <div className="flex">
+                    <h1>Signup</h1>
+                    <div>
+                      <label>Username</label>
+                      <input type="text"
+                             onChange={e => setUsername(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label>Mail</label>
+                      <input type="text"
+                             onChange={e => setMail(e.target.value)}/>
+                    </div>
+                    <div>
+                      <label>Password</label>
+                      <input type="password"
+                             onChange={e => setPassword(e.target.value)}
+                      />
+                    </div>
+                    <button
+                      className="p-5 m-2 bg-orange-400"
+                      onClick={() => signup()}>Login</button>
+                    <p>Already have an account?</p>
+                    <button onClick={() => setIsAuth(true)}>auth</button>
+                  </div>
+                }
+              </section>
+          }
         </div>
       </main>
     </>
